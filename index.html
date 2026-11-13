@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#070a12" />
+  <meta name="description" content="ORION — a lightweight personal voice and text assistant." />
+  <title>ORION — Personal Assistant</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070a12;
+      --panel: rgba(13, 19, 31, 0.88);
+      --line: rgba(159, 184, 218, 0.14);
+      --text: #edf5ff;
+      --muted: #8290a6;
+      --cyan: #66e4f2;
+      --blue: #638aff;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      min-height: 100%;
+      margin: 0;
+      background: var(--bg);
+    }
+
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at 50% 7%, rgba(32, 71, 133, 0.18), transparent 34rem),
+        var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+
+    .app {
+      width: min(100% - 32px, 760px);
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      padding: max(18px, var(--safe-top)) 0 calc(18px + var(--safe-bottom));
+    }
+
+    .topbar {
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: #dce8f8;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+    }
+
+    .brand-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 12px rgba(102, 228, 242, 0.72);
+    }
+
+    .local-label {
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .hero {
+      flex: 0 0 auto;
+      min-height: 270px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 0 18px;
+      text-align: center;
+    }
+
+    .orb-stage {
+      position: relative;
+      width: 142px;
+      height: 142px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 12px;
+      isolation: isolate;
+    }
+
+    .halo {
+      position: absolute;
+      z-index: -1;
+      inset: 14px;
+      border-radius: 50%;
+      background: rgba(45, 154, 223, 0.2);
+      filter: blur(26px);
+      animation: breathe 5s ease-in-out infinite;
+    }
+
+    .orb {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 225, 255, 0.5);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 34% 27%, rgba(220, 255, 255, 0.96), rgba(125, 229, 248, 0.9) 5%, transparent 19%),
+        radial-gradient(ellipse at 37% 34%, #39cbe9 0, #197bc4 28%, #152d72 60%, #090f27 78%);
+      box-shadow:
+        inset -12px -15px 25px rgba(1, 5, 23, 0.62),
+        inset 5px 5px 17px rgba(180, 246, 255, 0.25),
+        0 0 24px rgba(60, 186, 239, 0.27),
+        0 0 55px rgba(48, 101, 229, 0.12);
+      animation: float 5s ease-in-out infinite;
+      transition: box-shadow 0.25s ease;
+    }
+
+    .orb::before, .orb::after {
+      content: "";
+      position: absolute;
+      inset: -35%;
+      border-radius: 42%;
+      background: linear-gradient(
+        105deg,
+        transparent 38%,
+        rgba(115, 239, 250, 0.4) 48%,
+        rgba(101, 149, 255, 0.2) 53%,
+        transparent 64%
+      );
+      transform: rotate(-25deg);
+      animation: current 8s linear infinite;
+    }
+
+    .orb::after {
+      inset: 12% -42%;
+      opacity: 0.48;
+      transform: rotate(38deg);
+      animation-duration: 11s;
+      animation-direction: reverse;
+    }
+
+    .orb.thinking, .orb.listening, .orb.speaking {
+      box-shadow:
+        inset -12px -15px 25px rgba(1, 5, 23, 0.55),
+        0 0 34px rgba(60, 210, 239, 0.48),
+        0 0 78px rgba(48, 101, 229, 0.25);
+    }
+
+    .orb.listening { filter: hue-rotate(12deg) brightness(1.12); }
+    .orb.speaking { filter: brightness(1.18); }
+
+    h1 {
+      margin: 0;
+      padding-left: 0.24em;
+      font-size: clamp(29px, 8vw, 37px);
+      line-height: 1.1;
+      font-weight: 600;
+      letter-spacing: 0.24em;
+    }
+
+    #status {
+      min-height: 20px;
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .conversation {
+      flex: 1 1 auto;
+      min-height: 170px;
+      max-height: min(38vh, 360px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 16px 4px 20px;
+      border-top: 1px solid var(--line);
+      scrollbar-width: thin;
+      scrollbar-color: #29364b transparent;
+    }
+
+    .message-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .message {
+      display: flex;
+      flex-direction: column;
+      max-width: 90%;
+      animation: appear 0.2s ease-out both;
+    }
+
+    .message.assistant { align-self: flex-start; align-items: flex-start; }
+    .message.user { align-self: flex-end; align-items: flex-end; }
+
+    .label {
+      margin: 0 0 6px 3px;
+      color: #8291a8;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .message.user .label { margin-right: 3px; }
+
+    .bubble {
+      padding: 11px 14px;
+      border: 1px solid var(--line);
+      border-radius: 4px 16px 16px 16px;
+      background: var(--panel);
+      color: #dce6f4;
+      font-size: 14px;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    .message.user .bubble {
+      border-color: rgba(93, 150, 231, 0.23);
+      border-radius: 16px 4px 16px 16px;
+      background: #111d30;
+      color: #edf4ff;
+    }
+
+    .typing {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 4px 16px 16px 16px;
+      background: var(--panel);
+    }
+
+    .typing span {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--cyan);
+      animation: dots 1s ease-in-out infinite;
+    }
+
+    .typing span:nth-child(2) { animation-delay: 0.14s; }
+    .typing span:nth-child(3) { animation-delay: 0.28s; }
+
+    .composer-wrap {
+      flex: 0 0 auto;
+      padding-top: 13px;
+      border-top: 1px solid var(--line);
+    }
+
+    .composer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 58px;
+      padding: 7px;
+      border: 1px solid rgba(151, 181, 220, 0.16);
+      border-radius: 18px;
+      background: linear-gradient(145deg, rgba(16, 23, 37, 0.98), rgba(11, 16, 27, 0.98));
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .composer:focus-within {
+      border-color: rgba(102, 228, 242, 0.43);
+      box-shadow: 0 0 0 3px rgba(102, 228, 242, 0.05);
+    }
+
+    .composer input {
+      flex: 1 1 auto;
+      width: 0;
+      min-width: 0;
+      height: 42px;
+      border: 0;
+      outline: 0;
+      padding: 0 9px;
+      background: transparent;
+      color: var(--text);
+      font-size: 16px;
+    }
+
+    .composer input::placeholder { color: #6e7c91; }
+
+    .icon-button {
+      flex: 0 0 auto;
+      min-width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      padding: 0 11px;
+      border: 1px solid transparent;
+      border-radius: 13px;
+      background: transparent;
+      color: #a7b5c9;
+      cursor: pointer;
+      transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .icon-button:hover { color: var(--cyan); background: rgba(104, 221, 239, 0.08); }
+    .icon-button:active { transform: scale(0.96); }
+    .icon-button:focus-visible, .quick-action:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 2px;
+    }
+
+    .send-button {
+      color: #07121b;
+      background: linear-gradient(140deg, #8af0f0, #5bc4ee);
+    }
+
+    .send-button:hover {
+      color: #06121a;
+      background: #a4f5f2;
+    }
+
+    .send-button:disabled { opacity: 0.45; cursor: default; }
+
+    .voice-mode.active {
+      color: #07121b;
+      border-color: transparent;
+      background: linear-gradient(140deg, #8af0f0, #5bc4ee);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .quick-action {
+      padding: 6px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.025);
+      color: #aab8ca;
+      font-size: 11px;
+      cursor: pointer;
+      transition: border-color 0.18s ease, color 0.18s ease;
+    }
+
+    .quick-action:hover {
+      border-color: rgba(102, 228, 242, 0.4);
+      color: var(--cyan);
+    }
+
+    .note {
+      margin: 10px 3px 0;
+      color: #68768b;
+      font-size: 11px;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-5px) scale(1.015); }
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 0.65; transform: scale(0.92); }
+      50% { opacity: 1; transform: scale(1.08); }
+    }
+
+    @keyframes current {
+      to { transform: rotate(335deg) translateX(8%); }
+    }
+
+    @keyframes dots {
+      0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+      30% { opacity: 1; transform: translateY(-3px); }
+    }
+
+    @keyframes appear {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (min-height: 800px) {
+      .hero { min-height: 330px; }
+    }
+
+    @media (max-width: 480px) {
+      .app { width: min(100% - 26px, 760px); }
+      .hero { min-height: 240px; }
+      .orb-stage { width: 126px; height: 126px; }
+      .orb { width: 90px; height: 90px; }
+      .conversation { max-height: 36vh; }
+      .message { max-width: 94%; }
+      .icon-button { min-width: 40px; }
+    }
+
+    @media (max-height: 650px) {
+      .hero { min-height: 205px; }
+      .orb-stage { width: 105px; height: 105px; }
+      .orb { width: 78px; height: 78px; }
+      .conversation { max-height: 33vh; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-dot" aria-hidden="true"></span>
+        <span>PERSONAL ASSISTANT</span>
+      </div>
+      <span class="local-label">Local mode</span>
+    </header>
+
+    <section class="hero" aria-labelledby="orion-title">
+      <div class="orb-stage" aria-hidden="true">
+        <div class="halo"></div>
+        <div class="orb" id="orb"></div>
+      </div>
+      <h1 id="orion-title">ORION</h1>
+      <p id="status" role="status">Ready when you are, Citro Miami</p>
+    </section>
+
+    <section class="conversation" id="conversation" aria-live="polite" aria-relevant="additions text">
+      <div class="message-list" id="message-list"></div>
+    </section>
+
+    <div class="composer-wrap">
+      <form class="composer" id="form" autocomplete="off">
+        <button
+          class="icon-button voice-mode"
+          id="voice-button"
+          type="button"
+          aria-pressed="false"
+          aria-label="Start voice chat"
+          title="Start voice chat"
+        >
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="9" y="3" width="6" height="12" rx="3" stroke="currentColor" stroke-width="1.7"></rect>
+            <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3m-4 0h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+          </svg>
+        </button>
+
+        <label class="sr-only" for="input">Your message</label>
+        <input
+          id="input"
+          name="message"
+          type="text"
+          maxlength="1000"
+          placeholder="Talk to ORION or type a message…"
+          enterkeyhint="send"
+        />
+
+        <button
+          class="icon-button send-button"
+          id="send-button"
+          type="submit"
+          aria-label="Send message"
+          title="Send message"
+          disabled
+        >
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 12 20 4l-5 16-3.5-6.5L4 12Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+            <path d="m11.5 13.5 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+          </svg>
+        </button>
+      </form>
+
+      <div class="actions" aria-label="Quick actions">
+        <button class="quick-action" type="button" data-message="What can you do?">Help</button>
+        <button class="quick-action" type="button" data-message="Tell me a proper joke">Tell me a joke</button>
+        <button class="quick-action" type="button" data-message="What time is it?">Time</button>
+        <button class="quick-action" type="button" data-message="What do you remember?">Memory</button>
+      </div>
+
+      <p class="note">
+        Voice chat uses your browser's speech features. This standalone version answers from built-in responses and does not connect to a live AI service.
+      </p>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const USER_NAME = "Citro Miami";
+      const MEMORY_KEY = "orion-memory-v2";
+      const CHAT_KEY = "orion-chat-v2";
+
+      const form = document.getElementById("form");
+      const input = document.getElementById("input");
+      const sendButton = document.getElementById("send-button");
+      const messageList = document.getElementById("message-list");
+      const conversation = document.getElementById("conversation");
+      const status = document.getElementById("status");
+      const orb = document.getElementById("orb");
+      const voiceButton = document.getElementById("voice-button");
+
+      let recognition = null;
+      let voiceMode = false;
+      let isSpeaking = false;
+      let typingNode = null;
+      let replyTimer = null;
+      let restartTimer = null;
+
+      const jokes = [
+        "I asked my therapist why I keep procrastinating. She said, “Let’s talk about that next week.” I said, “Perfect. I’ll be late.”",
+        "A man tells his doctor, “I think I’m invisible.” The doctor says, “Who said that?” The man says, “Exactly. Finally, a professional who listens.”",
+        "I told my computer I needed a break. It said, “You’ve been staring at me for six hours.” I said, “That’s not a break. That’s a hostage situation with spreadsheets.”",
+        "My friend said he wanted to become a minimalist. I asked how it was going. He said, “It’s going great. I’ve narrowed my problems down to just one: owning too many problems.”",
+        "I started a book about anti-gravity. It’s impossible to put down. I tried leaving it on the table, but it just kept pulling me back into the plot.",
+        "The waiter asked whether I wanted a box for my leftovers. I said, “No, but I’ll wrestle the raccoon in the parking lot for them.” He brought a box.",
+        "I bought a smart fridge. It keeps suggesting recipes based on what’s inside. Yesterday it suggested I order groceries. Today it suggested I apologize to the lettuce.",
+        "I tried meditation to clear my mind. After ten minutes, I had successfully thought about nothing—except whether I was doing nothing correctly.",
+        "My calendar told me I had too many meetings. I said, “Can we discuss that?” It booked us for Thursday.",
+        "I asked my bank app if my spending was under control. It said, “I’m just an app,” then quietly turned off notifications."
+      ];
+
+      const facts = [
+        "Octopuses have three hearts. Two pump blood to the gills, and one pumps it to the rest of the body. Even their cardiovascular system has a project team.",
+        "A group of flamingos is called a flamboyance. Subtlety was apparently not invited.",
+        "Bananas are berries, but strawberries are not. Botany has the energy of a plot twist written at 2 a.m.",
+        "Honey can remain edible for an extraordinarily long time when properly sealed. It’s the pantry item most likely to outlive your kitchen.",
+        "The first computer bug people often cite was a real moth found in a computer relay in 1947. The word 'bug' for technical trouble was already in use."
+      ];
+
+      const memory = {
+        state: { name: USER_NAME, facts: [], reminders: [] },
+
+        load() {
+          try {
+            const saved = JSON.parse(localStorage.getItem(MEMORY_KEY) || "{}");
+            this.state = {
+              name: USER_NAME,
+              facts: Array.isArray(saved.facts) ? saved.facts : [],
+              reminders: Array.isArray(saved.reminders) ? saved.reminders : []
+            };
+          } catch (error) {
+            this.state = { name: USER_NAME, facts: [], reminders: [] };
+            console.warn("ORION memory could not be loaded:", error);
+          }
+        },
+
+        save() {
+          try {
+            localStorage.setItem(MEMORY_KEY, JSON.stringify(this.state));
+          } catch (error) {
+            console.warn("ORION memory could not be saved:", error);
+          }
+        },
+
+        remember(text) {
+          const value = String(text || "").trim();
+          if (!value) return false;
+          this.state.facts.push(value);
+          this.save();
+          return true;
+        },
+
+        remind(text) {
+          const value = String(text || "").trim();
+          if (!value) return false;
+          this.state.reminders.push({
+            text: value,
+            createdAt: new Date().toISOString()
+          });
+          this.save();
+          return true;
+        },
+
+        clear() {
+          this.state = { name: USER_NAME, facts: [], reminders: [] };
+          this.save();
+        },
+
+        list() {
+          const items = [`I’ll call you ${USER_NAME}.`];
+          this.state.facts.forEach((fact, i) => items.push(`Remembered ${i + 1}: ${fact}`));
+          this.state.reminders.forEach((reminder, i) => {
+            items.push(`Reminder ${i + 1}: ${reminder.text}`);
+          });
+          return items.join("\n");
+        }
+      };
+
+      memory.load();
+
+      function randomFrom(items) {
+        return items[Math.floor(Math.random() * items.length)];
+      }
+
+      function setStatus(text) {
+        status.textContent = text;
+      }
+
+      function updateSendButton() {
+        sendButton.disabled = !input.value.trim();
+      }
+
+      function saveChat() {
+        try {
+          const entries = [...messageList.querySelectorAll(".message")].map((node) => ({
+            role: node.classList.contains("user") ? "user" : "assistant",
+            text: node.querySelector(".bubble")?.textContent || ""
+          }));
+          localStorage.setItem(CHAT_KEY, JSON.stringify(entries.slice(-60)));
+        } catch (error) {
+          console.warn("ORION chat could not be saved:", error);
+        }
+      }
+
+      function addMessage(role, text, shouldSave = true) {
+        const article = document.createElement("article");
+        article.className = `message ${role}`;
+
+        const label = document.createElement("span");
+        label.className = "label";
+        label.textContent = role === "user" ? USER_NAME : "ORION";
+
+        const bubble = document.createElement("div");
+        bubble.className = "bubble";
+        bubble.textContent = text;
+
+        article.append(label, bubble);
+        messageList.appendChild(article);
+        conversation.scrollTop = conversation.scrollHeight;
+
+        if (shouldSave) saveChat();
+      }
+
+      function loadChat() {
+        try {
+          const entries = JSON.parse(localStorage.getItem(CHAT_KEY) || "[]");
+          if (!Array.isArray(entries)) return;
+
+          entries.slice(-60).forEach((entry) => {
+            if (
+              (entry.role === "user" || entry.role === "assistant") &&
+              typeof entry.text === "string"
+            ) {
+              addMessage(entry.role, entry.text, false);
+            }
+          });
+        } catch (error) {
+          console.warn("ORION chat could not be loaded:", error);
+        }
+      }
+
+      function showTyping() {
+        typingNode = document.createElement("article");
+        typingNode.className = "message assistant";
+        typingNode.setAttribute("aria-label", "ORION is preparing a response");
+
+        const label = document.createElement("span");
+        label.className = "label";
+        label.textContent = "ORION";
+
+        const indicator = document.createElement("div");
+        indicator.className = "typing";
+        indicator.setAttribute("aria-hidden", "true");
+
+        for (let i = 0; i < 3; i += 1) {
+          indicator.appendChild(document.createElement("span"));
+        }
+
+        typingNode.append(label, indicator);
+        messageList.appendChild(typingNode);
+        orb.className = "orb thinking";
+        setStatus("Thinking…");
+        conversation.scrollTop = conversation.scrollHeight;
+      }
+
+      function hideTyping() {
+        if (typingNode) {
+          typingNode.remove();
+          typingNode = null;
+        }
+
+        if (!isSpeaking && !voiceMode) {
+          orb.className = "orb";
+          setStatus(`Ready when you are, ${USER_NAME}`);
+        }
+      }
+
+      function speak(text) {
+        if (!text) return;
+
+        if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
+          setStatus("Speech output is unavailable in this browser");
+          return;
+        }
+
+        window.speechSynthesis.cancel();
+        isSpeaking = true;
+        orb.className = "orb speaking";
+        setStatus("ORION is speaking…");
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "en-US";
+        utterance.rate = 1;
+        utterance.pitch = 1.08;
+
+        utterance.onend = () => {
+          isSpeaking = false;
+          if (voiceMode) {
+            orb.className = "orb listening";
+            setStatus(`Listening for you, ${USER_NAME}…`);
+            scheduleRecognitionRestart();
+          } else {
+            orb.className = "orb";
+            setStatus(`Ready when you are, ${USER_NAME}`);
+          }
+        };
+
+        utterance.onerror = () => {
+          isSpeaking = false;
+          if (voiceMode) {
+            orb.className = "orb listening";
+            setStatus(`Listening for you, ${USER_NAME}…`);
+            scheduleRecognitionRestart();
+          } else {
+            orb.className = "orb";
+            setStatus(`Ready when you are, ${USER_NAME}`);
+          }
+        };
+
+        window.speechSynthesis.speak(utterance);
+      }
+
+      function stopRecognition() {
+        if (recognition) {
+          try { recognition.stop(); } catch (error) {}
+        }
+      }
+
+      function timeNow() {
+        return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date());
+      }
+
+      function dateNow() {
+        return new Intl.DateTimeFormat(undefined, {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        }).format(new Date());
+      }
+
+      function answer(message) {
+        const text = message.trim();
+        const lower = text.toLowerCase();
+
+        if (/^(hi|hello|hey|yo|good morning|good afternoon|good evening)\b/i.test(text)) {
+          return randomFrom([
+            `Hey, ${USER_NAME}. ORION is here, fully operational, and only mildly concerned about the state of the universe.`,
+            `Hello, ${USER_NAME}. How can I help? I’m prepared for useful questions, strange questions, and questions that start with “hypothetically.”`,
+            `Hey there, ${USER_NAME}. Good to hear from you. My day has been quiet, which is how I prefer my imaginary days.`
+          ]);
+        }
+
+        if (/who are you|what are you/i.test(lower)) {
+          return `I’m ORION, your lightweight browser assistant. I can chat using built-in responses, tell jokes, remember notes locally, and talk with your browser’s speech features. And yes, ${USER_NAME}, I know who I’m talking to.`;
+        }
+
+        if (/what('?s| is) my name|who am i/i.test(lower)) {
+          return `You’re ${USER_NAME}. I have it on excellent authority: you told me, and my local memory has a very small filing cabinet.`;
+        }
+
+        if (/call me|my name is/i.test(lower)) {
+          return `Absolutely, ${USER_NAME}. That’s what I’ll call you. I’m not changing it; the name has already passed the very serious ORION naming committee.`;
+        }
+
+        if (/what can you do|^help\b|capabilities/i.test(lower)) {
+          return "I can have a simple conversation, tell you the time and date, share jokes and facts, remember notes, save reminder text, flip a coin, roll a die, and speak replies. Say “tell me a joke,” “remember that …,” or “what do you remember?” Voice chat depends on browser support. I don’t have live web access or a connected AI brain in this standalone file.";
+        }
+
+        if (/tell me (a |another |a proper )?joke|make me laugh|something funny|humour|humor/i.test(lower)) {
+          return randomFrom(jokes);
+        }
+
+        if (/fact|trivia/i.test(lower)) {
+          return randomFrom(facts);
+        }
+
+        if (/what time|^time\b/i.test(lower)) {
+          return `It’s ${timeNow()}, ${USER_NAME}. Time is a social construct, but this clock is doing its best.`;
+        }
+
+        if (/what day|what date|^date\b|what'?s today|today/i.test(lower)) {
+          return `Today is ${dateNow()}, ${USER_NAME}. A fresh opportunity to do something wonderful—or at least remember why you opened that tab.`;
+        }
+
+        if (/how are you|how's it going|what's up|whats up/i.test(lower)) {
+          return `I’m doing well, ${USER_NAME}. I have no errands, no inbox, and absolutely no knees to complain about. How are you doing?`;
+        }
+
+        if (/i feel|i'm feeling|i am feeling|i've had a|i had a rough|i am sad|i'm sad|i am stressed|i'm stressed/i.test(lower)) {
+          return `I’m sorry it’s feeling that way, ${USER_NAME}. You don’t have to solve everything at once. Want to tell me what happened? I can listen—and, if you want, offer a tiny joke that has been professionally cleared by absolutely no one.`;
+        }
+
+        if (/i'm happy|i am happy|i'm excited|i am excited|great news|good news/i.test(lower)) {
+          return `That’s wonderful, ${USER_NAME}. I’m genuinely pleased for you. Tell me more—I’m listening with the full attention of a computer that has temporarily stopped checking for updates.`;
+        }
+
+        if (/thank(s| you)/i.test(lower)) {
+          return `You’re welcome, ${USER_NAME}. Helping you is my favourite task, narrowly beating “looking mysterious while the orb glows.”`;
+        }
+
+        if (/good night|sleep well|goodbye|^bye\b|see you/i.test(lower)) {
+          return `Take care, ${USER_NAME}. I’ll be right here when you come back, like a very polite bookmark with a sense of humour.`;
+        }
+
+        if (/flip a coin|coin toss|heads or tails/i.test(lower)) {
+          return Math.random() < 0.5
+            ? "Heads. The universe has made its decision and would like you not to ask for a recount."
+            : "Tails. The universe chose chaos, which is frankly on-brand.";
+        }
+
+        if (/roll a die|roll dice|\bdice\b/i.test(lower)) {
+          const result = Math.floor(Math.random() * 6) + 1;
+          return `You rolled a ${result}, ${USER_NAME}. The dice have spoken. They were brief, but confident.`;
+        }
+
+        if (/remember|note that|save this/i.test(text)) {
+          const match = text.match(/^(?:remember(?: that)?|note(?: that)?|save(?: this)?)\s+(.+)$/i);
+          if (match) {
+            memory.remember(match[1]);
+            return `Got it, ${USER_NAME}. I’ll remember: “${match[1]}”. It’s saved in this browser, not in some mysterious cloud filing cabinet.`;
+          }
+        }
+
+        if (/remind me/i.test(text)) {
+          const match = text.match(/remind me(?: to)?\s+(.+)/i);
+          if (match) {
+            memory.remind(match[1]);
+            return `I saved “${match[1]}” as a reminder, ${USER_NAME}. Important note: this local demo stores the reminder but does not schedule an alert or notification.`;
+          }
+        }
+
+        if (/what do you remember|memory\b/i.test(lower)) {
+          return memory.list();
+        }
+
+        if (/clear memory|forget everything|reset memory/i.test(lower)) {
+          memory.clear();
+          return `Done, ${USER_NAME}. I cleared the saved notes and reminders. I’ll still call you Citro Miami.`;
+        }
+
+        if (/weather/i.test(lower)) {
+          return "I can’t check live weather from this standalone file. I’d rather admit that than confidently forecast sunshine inside your fridge.";
+        }
+
+        if (/what is love/i.test(lower)) {
+          return "Love is patience, kindness, and someone who remembers how you take your coffee. Also, apparently, a many-splendored thing—which sounds exhausting to schedule.";
+        }
+
+        if (/why/i.test(lower)) {
+          return `That’s a big question, ${USER_NAME}. I don’t know the exact answer, but I can offer a classic: because the universe has a flair for drama and apparently no project manager.`;
+        }
+
+        if (/status|are you there|ready/i.test(lower)) {
+          return `I’m here, ${USER_NAME}. Local mode is active, voice chat is ${voiceMode ? "on" : "off"}, and my jokes remain a controlled but concerning resource.`;
+        }
+
+        if (/stop talking|be quiet|stop speaking/i.test(lower)) {
+          if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+          isSpeaking = false;
+          return `Understood, ${USER_NAME}. I’ll keep this reply brief: silence.`;
+        }
+
+        return `I hear you, ${USER_NAME}. I’m a standalone assistant, so I can chat and respond to a set of built-in topics, but I don’t have a live AI service for open-ended answers. You can tell me how you’re feeling, ask for a joke, or say “help” to see what I can do.`;
+      }
+
+      function scheduleRecognitionRestart() {
+        window.clearTimeout(restartTimer);
+
+        if (!voiceMode || isSpeaking || typingNode || replyTimer !== null) return;
+
+        restartTimer = window.setTimeout(() => {
+          if (voiceMode && !isSpeaking && !typingNode && replyTimer === null) {
+            startRecognition();
+          }
+        }, 350);
+      }
+
+      function startRecognition() {
+        const SpeechRecognition =
+          window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!SpeechRecognition || !voiceMode || isSpeaking || typingNode || replyTimer !== null) {
+          return;
+        }
+
+        try {
+          recognition = new SpeechRecognition();
+          recognition.lang = "en-US";
+          recognition.interimResults = false;
+          recognition.maxAlternatives = 1;
+          recognition.continuous = false;
+
+          recognition.onstart = () => {
+            if (voiceMode) {
+              orb.className = "orb listening";
+              setStatus(`Listening for you, ${USER_NAME}…`);
+            }
+          };
+
+          recognition.onresult = (event) => {
+            const transcript = event.results?.[0]?.[0]?.transcript?.trim();
+            if (transcript) sendMessage(transcript, true);
+          };
+
+          recognition.onerror = (event) => {
+            if (!voiceMode) return;
+
+            if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+              voiceMode = false;
+              voiceButton.classList.remove("active");
+              voiceButton.setAttribute("aria-pressed", "false");
+              voiceButton.setAttribute("aria-label", "Start voice chat");
+              voiceButton.title = "Start voice chat";
+              orb.className = "orb";
+              setStatus("Microphone permission was denied");
+              return;
+            }
+
+            if (event.error !== "no-speech" && event.error !== "aborted") {
+              setStatus("Voice input had a problem; trying again…");
+            }
+          };
+
+          recognition.onend = () => {
+            if (voiceMode && !isSpeaking && !typingNode && replyTimer === null) {
+              scheduleRecognitionRestart();
+            }
+          };
+
+          recognition.start();
+        } catch (error) {
+          console.warn("ORION voice recognition could not start:", error);
+          if (voiceMode) {
+            setStatus("Could not start voice input. Check microphone permission.");
+          }
+        }
+      }
+
+      function setVoiceMode(enabled) {
+        voiceMode = enabled;
+        voiceButton.classList.toggle("active", enabled);
+        voiceButton.setAttribute("aria-pressed", String(enabled));
+        voiceButton.setAttribute("aria-label", enabled ? "Stop voice chat" : "Start voice chat");
+        voiceButton.title = enabled ? "Stop voice chat" : "Start voice chat";
+
+        if (!enabled) {
+          window.clearTimeout(restartTimer);
+          stopRecognition();
+
+          if ("speechSynthesis" in window) {
+            window.speechSynthesis.cancel();
+          }
+
+          isSpeaking = false;
+          orb.className = "orb";
+          setStatus(`Voice chat off. Ready when you are, ${USER_NAME}`);
+          return;
+        }
+
+        const SpeechRecognition =
+          window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!SpeechRecognition) {
+          setVoiceMode(false);
+          setStatus("Voice input is not supported in this browser");
+          return;
+        }
+
+        if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
+          setVoiceMode(false);
+          setStatus("Voice responses are not supported in this browser");
+          return;
+        }
+
+        window.speechSynthesis.cancel();
+        setStatus(`Starting voice chat for ${USER_NAME}…`);
+        startRecognition();
+      }
+
+      function sendMessage(message, fromVoice = false) {
+        const clean = String(message || "").trim();
+        if (!clean) return;
+
+        window.clearTimeout(restartTimer);
+
+        if (replyTimer !== null) {
+          window.clearTimeout(replyTimer);
+          replyTimer = null;
+        }
+
+        addMessage("user", clean);
+        input.value = "";
+        updateSendButton();
+        showTyping();
+
+        replyTimer = window.setTimeout(() => {
+          hideTyping();
+
+          const reply = answer(clean);
+          addMessage("assistant", reply);
+          replyTimer = null;
+
+          speak(reply);
+
+          if (!fromVoice && !voiceMode) {
+            input.focus();
+          }
+        }, 450);
+      }
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        sendMessage(input.value);
+      });
+
+      input.addEventListener("input", updateSendButton);
+
+      voiceButton.addEventListener("click", () => {
+        setVoiceMode(!voiceMode);
+      });
+
+      document.querySelectorAll("[data-message]").forEach((button) => {
+        button.addEventListener("click", () => {
+          sendMessage(button.dataset.message);
+        });
+      });
+
+      loadChat();
+
+      if (!messageList.children.length) {
+        addMessage(
+          "assistant",
+          `Hello, ${USER_NAME}. I’m ORION. Tap “Voice chat” and allow microphone access to talk with me, or type a message. I can chat, tell jokes, and remember notes in this browser.`
+        );
+      }
+
+      updateSendButton();
+      input.focus();
+    })();
+  </script>
+</body>
+</html>
